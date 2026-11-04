@@ -1,0 +1,22 @@
+{
+  "name": "ohha-agent-os-protected-source",
+  "version": "0.1.3",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "apps/desktop"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "npm run start --workspace apps/desktop",
+    "build": "npm run build --workspace apps/desktop",
+    "typecheck": "npm run typecheck --workspace apps/desktop",
+    "test": "npm run test --workspace apps/desktop -- --maxWorkers=1",
+    "package:protected": "npm run build && node scripts/package-protected.mjs",
+    "test:coordination": "python3 -B -m unittest discover -s coordination/tests -p \"test_*.py\"",
+    "test:services": "python3 -B -m unittest discover -s ops/macos -p \"test_*.py\""
+  }
+}

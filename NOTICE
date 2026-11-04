@@ -1,0 +1,34 @@
+Herald OS
+Copyright (c) 2026 Luke The Dev (@iamlukethedev)
+Licensed under the MIT License; see LICENSE.
+
+Herald OS runs on Hermes Agent (https://github.com/NousResearch/hermes-agent),
+Copyright (c) 2025 Nous Research, released under the MIT License. It uses
+Hermes Agent without modifying it, and includes the following material from it:
+
+- apps/desktop/src/assets/brand/hermes-avatar.jpg, the Hermes agent avatar
+  (apps/desktop/public/nous-girl.jpg upstream).
+- The TypeScript gateway client and generated wire contract
+  (apps/shared/src upstream). They are downloaded at build time into
+  upstream/hermes-agent/ (pinned by upstream/UPSTREAM.lock), re-exported by
+  packages/hermes-client and compiled into the Herald OS shell.
+
+The Hermes Agent runtime itself is not distributed with Herald OS; users
+install it separately.
+
+Herald OS is an independent project. It is not an official Hermes Agent or
+Nous Research product, and it is not affiliated with, sponsored by or endorsed
+by Nous Research.
+
+Third-party npm and Python packages keep their own licenses. A packaged build
+includes Electron (MIT, https://github.com/electron/electron/blob/main/LICENSE)
+and Chromium, whose component licenses are listed in LICENSES.chromium.html in
+every Electron release. It also includes ONNX Runtime Web (MIT,
+https://github.com/microsoft/onnxruntime), which runs Herald Canvas's on-device
+models, and ag-psd (MIT, https://github.com/Agamnentzar/ag-psd), which reads and
+writes Photoshop documents, with its dependencies pako (MIT and Zlib,
+https://github.com/nodeca/pako) and base64-js (MIT,
+https://github.com/beatgammit/base64-js). The models themselves are not
+distributed with Herald OS: Herald Canvas downloads each from where its
+publisher put it, only after the person allows it, and each keeps its own
+license (listed in apps/desktop/shared/canvas/models.ts).

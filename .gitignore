@@ -1,0 +1,14 @@
+node_modules/
+dist/
+release/
+.local/
+coverage/
+*.tsbuildinfo
+__pycache__/
+*.pyc
+.env
+.env.*
+*.log
+*.app/
+graft/
+.omc/

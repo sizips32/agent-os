@@ -1,0 +1,116 @@
+{
+  "source_sha256": "16587f970f9ffac9a5a9b111c14d42293458cd7e0a391081e5f15f20383fab04",
+  "source": "hermes_cli/stream_json.py; gateway_chat.py launch_from_args/bind_session; gateway_chat_view.py one-shot result",
+  "cases": {
+    "success": [
+      {
+        "type": "system",
+        "subtype": "init",
+        "model": "fixture-model",
+        "session_id": "",
+        "timestamp": 0
+      },
+      {
+        "type": "text",
+        "text": "fixture gateway response",
+        "timestamp": 0
+      },
+      {
+        "type": "tool_use",
+        "name": "fixture_tool",
+        "timestamp": 0
+      },
+      {
+        "type": "tool_result",
+        "name": "fixture_tool",
+        "output": "synthetic tool output",
+        "duration_ms": 0,
+        "is_error": false,
+        "timestamp": 0
+      },
+      {
+        "type": "result",
+        "session_id": "fixture_gateway_session",
+        "exit_code": 0,
+        "text": "fixture gateway response",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "duration_ms": 0,
+        "timestamp": 0
+      }
+    ],
+    "startup_failure": [
+      {
+        "type": "system",
+        "subtype": "init",
+        "model": "fixture-model",
+        "session_id": "",
+        "timestamp": 0
+      },
+      {
+        "type": "result",
+        "session_id": "",
+        "exit_code": 1,
+        "text": "",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "duration_ms": 0,
+        "error": "private diagnostic fixture must not persist",
+        "timestamp": 0
+      }
+    ],
+    "turn_failure": [
+      {
+        "type": "system",
+        "subtype": "init",
+        "model": "fixture-model",
+        "session_id": "",
+        "timestamp": 0
+      },
+      {
+        "type": "text",
+        "text": "fixture gateway response",
+        "timestamp": 0
+      },
+      {
+        "type": "tool_use",
+        "name": "fixture_tool",
+        "timestamp": 0
+      },
+      {
+        "type": "tool_result",
+        "name": "fixture_tool",
+        "output": "synthetic tool output",
+        "duration_ms": 0,
+        "is_error": false,
+        "timestamp": 0
+      },
+      {
+        "type": "result",
+        "session_id": "fixture_gateway_session",
+        "exit_code": 1,
+        "text": "",
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "total": 0,
+          "cache_read": 0,
+          "cache_write": 0
+        },
+        "duration_ms": 0,
+        "error": "private diagnostic fixture must not persist",
+        "timestamp": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+# Source provenance
+
+Herald OS by Luke The Dev (@iamlukethedev), MIT, upstream `3c891adcd1f5c3b6eeadf4d20472d10d9516a999`. LICENSE and NOTICE are retained verbatim. The protected derivative implementation is based on local source `d3ba5c29fd8a1ce635e05989da4a277a091f42a1`, with approved real verification recorded in local documentation `1b279e9dff85dfb176dcfa304d533cd224140d65`.
+
+Published subset: `apps/desktop/protected`, protected React renderer and existing design CSS, minimal avatar component, required brand/build assets, Electron bundling and minimal packaging scripts. The existing protected runtime files, tests and renderer entry are copied without behavior changes. The avatar component retains only HermesAvatar, its imported public Hermes asset and the existing class helper. Manifests, TypeScript/Vite/Vitest configuration and this README are adapted for an independent, portable workspace without the unused gateway/client/shell dependency graph.
+
+The original upstream NOTICE describes its full distribution. This selected subset includes the Hermes avatar, but excludes the gateway client/wire contract, ONNX models, Canvas modules and full operating-system installation/bootstrap tooling referenced by that notice. The Hermes runtime is not bundled. Public npm dependencies retain their own licenses. Local packaging retains LICENSE and NOTICE in bundle resources along with Electron's existing license files.
+
+The root OH-HA MVP, Git history and remote are preserved. No upstream Git history or nested .git is imported. This publication adds selected source only; it does not include local runtime evidence or copy operational settings, memory, auth, conversations or approval records.
+
+The current export additionally includes bounded document/OCR reading, discovery storage and optional AI follow-up UI with serialized completion synchronization, plus their tests. The Swift document reader uses system PDFKit/Vision; archive/XML dependencies and their licenses are retained. Unused Canvas code remains excluded. Source copying excludes private verification reports; public feature and verification documentation is written separately.
+
+The subsequent export adds result copying/reversible hiding, bounded Obsidian search and selected-range evidence, reviewed append-only INBOX drafts, an isolated pinned-SDK adapter, local response restoration and fixed execution diagnostics. The source remains copied from the protected development workspace, except developer-specific absolute Python paths in the new vault tests are adapted to the current home directory. Minimal packaging explicitly includes both new Python helpers. Private Obsidian notes and development verification documents remain excluded.
+
+
+## Prepared 0.1.3 integration
+
+The selected protected runtime/renderer and its regression tests were synchronized from the reviewed 0.1.3 development candidate. Minimal independent build configuration, avatar assets, licenses and the root MVP remain intact. Owner-specific absolute test paths are adapted to the current home or synthetic fixture home. The update includes the read-only task reader, native terminal runtime packaging, installed-Tesseract fallback and partial-result admission. Dependencies are pinned to the same already-reviewed versions; no operating runtime is bundled.
+
+The coordination adapter retains default-denied live execution and fixture-only example bindings. Its separately versioned registration tool verifies existing owner-approved startup roots and controller inventory, storing actual bindings only in a private local file. The registered entry requires an exact, expiring owner grant; registration itself authorizes no task. Startup readiness changes are included as a patch and pure policy tests. The owner separately approved local application and registration without restarting existing apps or agents; actual operational settings are not copied into Git. Private evidence, stored approval records, sessions, original notes and build artifacts are excluded. The owner omitted the real collaboration test; actual collaboration and next-login behavior remain unverified.

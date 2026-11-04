@@ -1,0 +1,34 @@
+{
+  "source": "local official Hermes parser and installed Herdr skill; existing verified helper receipt readers",
+  "pins": [
+    {
+      "relative_path": ".hermes/hermes-agent/hermes_cli/_parser.py",
+      "sha256": "75fa3070d9cdcbeaa3fc1424e9c3dba06a403b9d43c74aaccc3b82829edf366c"
+    },
+    {
+      "relative_path": ".hermes/hermes-agent/hermes_cli/main.py",
+      "sha256": "88a7fc166d3bfaac082d44bbfc36c93b53c50f7508ca96e32206dc3f1edfaa82"
+    },
+    {
+      "relative_path": ".agents/skills/herdr/SKILL.md",
+      "sha256": "90ffe63b44b6e19c0c287b10ee39c2eb4435bba2d5e74d0f7c8c387ad88c20c3"
+    },
+    {
+      "relative_path": ".local/bin/herdr",
+      "sha256": "fb77c2232a05a8035421382c894392f4174e4e38a18e48af3dd0290157c3a7e2"
+    },
+    {
+      "relative_path": ".local/bin/hermes",
+      "sha256": "141ee4c69878d27955f8511c3fb56118e317cb62d29487cf34de9adcbccd3dbb"
+    }
+  ],
+  "commands": {
+    "specialist": "hermes -p PROFILE chat --resume SESSION --no-restore-cwd --query-file PATH --oneshot --format stream-json --max-turns N --run-budget SECONDS",
+    "worker": "herdr agent prompt PANE PROMPT --wait --timeout MILLISECONDS"
+  },
+  "unconfirmed": [
+    "atomic expected-session compare-and-prompt option",
+    "current native Herdr response schema from a genuine empty managed shell",
+    "native finals for non-Claude worker kinds"
+  ]
+}

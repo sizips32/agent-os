@@ -1,0 +1,58 @@
+--- a/login_attach.py
++++ b/login_attach.py
+@@ -14,0 +15 @@
++from service_preflight import wait_for_server
+@@ -99 +100,8 @@
+-def attach(*, check=True, deadline=120, session_path=guard.DEFAULT_SESSION,
++def budget_remaining(end, clock):
++    remaining = end-clock()
++    if remaining <= 0:
++        raise guard.Blocker('attach deadline exceeded')
++    return remaining
++
++
++def attach(*, check=True, deadline=180, session_path=guard.DEFAULT_SESSION,
+@@ -104,0 +113 @@
++    stage = 'validation'
+@@ -106,2 +115,2 @@
+-        if not math.isfinite(deadline) or not 0 < deadline <= 120:
+-            raise guard.Blocker("deadline must be within 120 seconds")
++        if not math.isfinite(deadline) or not 0 < deadline <= 180:
++            raise guard.Blocker("deadline must be within 180 seconds")
+@@ -123,0 +133 @@
++        stage = 'client_inventory'
+@@ -129,2 +139,4 @@
+-        while not status_func(budget(), clean):
+-            sleep(min(1.0, budget()))
++        stage = 'waiting_server'
++        ready = wait_for_server(lambda seconds: status_func(seconds, clean), timeout=budget_remaining(end, clock), clock=clock, sleep=sleep)
++        if not ready['ready']:
++            raise guard.Blocker('server readiness deadline exceeded')
+@@ -133,0 +146 @@
++        stage = 'opening_client'
+@@ -140 +153 @@
+-        return {"decision": "blocked", "blocker": str(exc), "opened": opened}
++        return {"decision": "blocked", "blocker": str(exc), "stage": stage, "opened": opened}
+@@ -150 +163 @@
+-    parser.add_argument("--deadline", type=float, default=120)
++    parser.add_argument("--deadline", type=float, default=180)
+--- a/login_reconcile.py
++++ b/login_reconcile.py
+@@ -19,0 +20 @@
++from service_preflight import reconcile_summary
+@@ -236 +237,3 @@
+-                row['ready'] = observed_ready(agent_observation(call, p, pid), info, s, pid)
++                observation = agent_observation(call, p, pid)
++                row['native_status'] = observation.get('agent_status')
++                row['ready'] = observed_ready(observation, info, s, pid)
+@@ -291 +294,3 @@
+-                row['ready'] = observed_ready(agent_observation(call, after, pid), process, s, pid)
++                observation = agent_observation(call, after, pid)
++                row['native_status'] = observation.get('agent_status')
++                row['ready'] = observed_ready(observation, process, s, pid)
+@@ -319 +324,4 @@
+-            result['complete'] = coverage_complete(result)
++            result['readiness'] = reconcile_summary(result['seats'])
++            result['complete'] = result['readiness']['initialized']
++            result['all_ready_for_new_work'] = result['readiness']['all_ready_for_new_work']
++            result['task_completion_verified'] = False
