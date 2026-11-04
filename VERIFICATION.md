@@ -1,5 +1,14 @@
 # Verification scope
 
+## Obsidian search coverage (2026-11-04)
+
+Search previously stopped at 100 notes/1MiB/5 levels in alphabetical order, so about 90% of the 1,028 `1_SEMANTIC_LAYER` notes were never searched. Caps are now 5,000 entries, 3,000 notes, 32MiB, 10 levels and a 2-second budget; all matches are ranked (title > tag > body > path) and only the top 30 receive evidence ids. Folder allow-list, deny-list, symlink exclusion, 64KiB per-note limit, secret-like exclusion and read-only behavior are unchanged. Related-note suggestions now consider the whole layer.
+
+| Check | Result |
+|---|---|
+| Vault tests | 41 passed, including whole-folder scan past 100 notes, 10-level depth limit, ranking order, top-30 with matched count, time-budget truncation and oversized count |
+| Real vault (read-only, no writes) | `1_SEMANTIC_LAYER`: 1,005 searched + 22 over 64KiB + 1 excluded as secret-like/unreadable = all 1,028 notes accounted for; 0.7-1.1 s per search, under the 2 s budget. `_giselle`: 36 notes in about 20 ms |
+
 ## Rust Office reader migration (2026-11-04)
 
 DOCX/XLSX/PPTX extraction moved from in-process `yauzl`/`fast-xml-parser` to the sandboxed Rust helper `apps/desktop/native/office-reader` (`zip` inflate-only, `quick-xml`, `regex`, `serde_json`). The TypeScript wrapper writes a 0600 temp file and runs the helper through the existing `sandbox-exec` network/write-denied runner.
