@@ -12,7 +12,7 @@ DOCX/XLSX/PPTX extraction moved from in-process `yauzl`/`fast-xml-parser` to the
 | Rust | `cargo test` 2 passed; `cargo clippy --release` clean |
 | TypeScript / build | Typecheck passed; `npm run build` produced `dist/native/office-reader` (arm64) |
 | Coordination / services | 77 / 7 tests passed |
-| Packaging | Not completed: `npm run package:protected` stopped because `node_modules/electron/dist` is absent; `node_modules/electron` was last modified before this change and the lockfile diff only removes the 11 parser packages. The packaged `office-reader` resource and the GUI app were not verified |
+| Packaging | `npm run package:protected` passed after the owner installed the Electron binary: unsigned arm64 bundle contains executable `Resources/protected/office-reader` (byte-identical to `dist/native`). Run under the app's sandbox profile, the packaged helper extracted a Korean DOCX fixture and rejected a macro fixture with `active_content`. The GUI app was not launched |
 
 ## Source 0.1.3 and approved local registration (2026-10-20)
 
