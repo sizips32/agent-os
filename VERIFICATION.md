@@ -12,7 +12,8 @@ DOCX/XLSX/PPTX extraction moved from in-process `yauzl`/`fast-xml-parser` to the
 | Rust | `cargo test` 2 passed; `cargo clippy --release` clean |
 | TypeScript / build | Typecheck passed; `npm run build` produced `dist/native/office-reader` (arm64) |
 | Coordination / services | 77 / 7 tests passed |
-| Packaging | `npm run package:protected` passed after the owner installed the Electron binary: unsigned arm64 bundle contains executable `Resources/protected/office-reader` (byte-identical to `dist/native`). Run under the app's sandbox profile, the packaged helper extracted a Korean DOCX fixture and rejected a macro fixture with `active_content`. The GUI app was not launched |
+| Packaging | `npm run package:protected` passed after the owner installed the Electron binary: unsigned arm64 bundle contains executable `Resources/protected/office-reader` (byte-identical to `dist/native`). Run under the app's sandbox profile, the packaged helper extracted a Korean DOCX fixture and rejected a macro fixture with `active_content`. |
+| GUI attachment check | Dev-mode Electron app (separate `.local` data; the installed app was left running and untouched) with `HERALD_TEST_TRANSPORT=complete` and `HERALD_TEST_ATTACHMENT`, which replaces only the native file picker: DOCX, XLSX (sheet name, cells, formula cache note) and PPTX (slide order) previews rendered the Rust helper output; a macro DOCX showed the active-content refusal message. The native macOS file picker itself was not driven |
 
 ## Source 0.1.3 and approved local registration (2026-10-20)
 
