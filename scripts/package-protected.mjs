@@ -46,6 +46,7 @@ await build({
       { from: path.join(root, 'apps/desktop/protected/task-inspect.py'), to: 'protected/task-inspect.py' },
       { from: path.join(root, 'apps/desktop/protected/task_report.py'), to: 'protected/task_report.py' },
       { from: path.join(root, 'apps/desktop/dist/native/document-reader'), to: 'protected/document-reader' },
+      { from: path.join(root, 'apps/desktop/dist/native/office-reader'), to: 'protected/office-reader' },
       { from: path.join(root, 'apps/desktop/protected/document-third-party-licenses.txt'), to: 'protected/document-third-party-licenses.txt' },
       { from: path.join(root, 'apps/desktop/protected/vault-publish.py'), to: 'protected/vault-publish.py' },
       { from: path.join(root, 'apps/desktop/protected/vault-query.py'), to: 'protected/vault-query.py' },

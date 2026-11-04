@@ -1,5 +1,19 @@
 # Verification scope
 
+## Rust Office reader migration (2026-11-04)
+
+DOCX/XLSX/PPTX extraction moved from in-process `yauzl`/`fast-xml-parser` to the sandboxed Rust helper `apps/desktop/native/office-reader` (`zip` inflate-only, `quick-xml`, `regex`, `serde_json`). The TypeScript wrapper writes a 0600 temp file and runs the helper through the existing `sandbox-exec` network/write-denied runner.
+
+| Check | Result |
+|---|---|
+| Differential parity (temporary, removed after use) | Legacy TS vs Rust on 20 synthetic inputs (17 tabled cases: entities, CDATA/BOM, nested tables, UTF-16 truncation with emoji, malformed XML, macro content type, XLSX shared/inline/formula/target rules, PPTX order; 1 path-traversal entry; 2 invalid ZIP byte inputs): deep-equal results and error codes. The first run diverged on multiple top-level elements; the Rust parser was then aligned with the former validator (several roots and trailing text accepted, leading text rejected). 4 local real Office files: 3 extracted identically, 1 rejected identically (`active_content`) |
+| Intentional difference | Runs interleaved with other elements (e.g. hyperlinks) are now read in document order (`ABC`); the previous object-grouping parser produced `ACB`. Covered by a new regression test |
+| Standalone desktop regression | 30 files / 308 tests passed against the real Rust binary |
+| Rust | `cargo test` 2 passed; `cargo clippy --release` clean |
+| TypeScript / build | Typecheck passed; `npm run build` produced `dist/native/office-reader` (arm64) |
+| Coordination / services | 77 / 7 tests passed |
+| Packaging | Not completed: `npm run package:protected` stopped because `node_modules/electron/dist` is absent; `node_modules/electron` was last modified before this change and the lockfile diff only removes the 11 parser packages. The packaged `office-reader` resource and the GUI app were not verified |
+
 ## Source 0.1.3 and approved local registration (2026-10-20)
 
 The selected standalone export is validated independently of the larger development workspace. The owner approved local startup-script application, retirement of one idle obsolete WebUI job and a separate default-denied helper registration. Existing apps and agents were not restarted or stopped; no API key or OS permission was added.

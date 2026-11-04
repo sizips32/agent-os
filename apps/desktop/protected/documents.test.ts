@@ -26,6 +26,10 @@ test('DOCX body and table text are local data; cross-format/empty/invalid XML fa
   await expect(office(await archive({ ...word(), 'word/document.xml': '<w:document>' }), '.docx')).rejects.toThrow('invalid_document')
   await expect(office(await archive({ ...word(), 'word/document.xml': '<w:document/>' }), '.docx')).rejects.toThrow('no_text')
 })
+test('DOCX keeps document order when runs are interleaved with hyperlinks (Rust helper fix)', async () => {
+  const bytes = await archive({ ...word(), 'word/document.xml': '<w:document><w:p><w:r><w:t>A</w:t></w:r><w:hyperlink><w:r><w:t>B</w:t></w:r></w:hyperlink><w:r><w:t>C</w:t></w:r></w:p></w:document>' })
+  expect((await office(bytes, '.docx')).units[0].text).toBe('ABC')
+})
 test('XLSX retains sheet/cell context, shared and inline Korean, cache values without calculating formulas', async () => {
   const bytes = await archive({ '[Content_Types].xml': types('spreadsheetml.sheet.main+xml'),
     'xl/workbook.xml': '<workbook><sheets><sheet name="한국어 시트" r:id="s1"/></sheets></workbook>',

@@ -4,7 +4,7 @@ This source package keeps the existing official Giselle profile as the sole live
 
 ## Documents and selected ranges
 
-Text files are decoded as bounded UTF-8. PDF text and scanned pages/image letters are extracted locally by a Swift PDFKit/Vision helper; OCR is not image understanding. DOCX/XLSX/PPTX readers accept bounded ZIP/XML structures and reject encrypted, damaged, excessive or unsupported active content. The preview shows warnings and selected text range. Long or capped extraction requires user confirmation. Filename and delimiter overhead counts toward the 12,000-character request cap. Selecting or previewing never uploads a file. Removal/cancellation invalidates late reading results. Existing native-image gating remains.
+Text files are decoded as bounded UTF-8. PDF text and scanned pages/image letters are extracted locally by a Swift PDFKit/Vision helper; OCR is not image understanding. DOCX/XLSX/PPTX are read by a sandboxed Rust helper process that accepts bounded ZIP/XML structures and reject encrypted, damaged, excessive or unsupported active content. The preview shows warnings and selected text range. Long or capped extraction requires user confirmation. Filename and delimiter overhead counts toward the 12,000-character request cap. Selecting or previewing never uploads a file. Removal/cancellation invalidates late reading results. Existing native-image gating remains.
 
 ## Local discovery and storage
 

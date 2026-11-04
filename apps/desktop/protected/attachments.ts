@@ -28,7 +28,7 @@ export function imageMime(bytes: Buffer): string | null {
   return null
 }
 export class Attachments {
-  constructor(private helper?: string, private extractNative = nativeDocument) {}
+  constructor(private helper?: string, private extractNative = nativeDocument, private officeHelper?: string) {}
   private selected = new Map<string, { view: AttachmentPreview; bytes: Buffer; ext: string }>()
   private staged = new Map<string, { dir: string; image: WorkImage }>()
   private readGeneration = 0
@@ -71,14 +71,16 @@ export class Attachments {
     let view: AttachmentPreview
     if (DOCUMENT_EXT.has(ext) || (kind === 'image' && this.helper)) {
       let extracted: Extracted
-      if (ext === '.pdf' || kind === 'image') {
+      const native = ext === '.pdf' || kind === 'image'
+      if (native) {
         if (!this.helper) throw Error('extraction_unavailable')
         if (ext === '.pdf' && bytes.toString('ascii', 0, 5) !== '%PDF-') throw Error('invalid_document')
         if (kind === 'image' && imageMime(bytes) !== IMAGE_EXT.get(ext)) throw Error('invalid_image')
-        const controller = new AbortController(); this.controllers.add(controller)
-        const pending = this.extractNative(bytes, ext, this.helper, controller.signal); this.reads.add(pending)
-        try { extracted = await pending } finally { this.reads.delete(pending); this.controllers.delete(controller) }
-      } else extracted = await office(bytes, ext)
+      }
+      const controller = new AbortController(); this.controllers.add(controller)
+      const pending = native ? this.extractNative(bytes, ext, this.helper!, controller.signal) : office(bytes, ext, this.officeHelper, controller.signal)
+      this.reads.add(pending)
+      try { extracted = await pending } finally { this.reads.delete(pending); this.controllers.delete(controller) }
       let fullText = ''
       const units = extracted.units.map(unit => { const start = fullText.length; fullText += `[${unit.label} · ${unit.method}]\n${unit.text || (unit.method.includes('생략') ? '(추출 한도로 내용 생략)' : '(글자 없음)')}\n\n`; return { label: unit.label, method: unit.method, start, end: fullText.length } })
       const end = Math.min(fullText.length, 8000)

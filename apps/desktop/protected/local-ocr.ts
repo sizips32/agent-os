@@ -18,7 +18,7 @@ export const runLocal:LocalRunner=(file,args,timeout,signal)=>new Promise((resol
       if(error.killed){reject(Error('extraction_timeout'));return}
       try{
         const code=JSON.parse(stdout).error
-        const known=['invalid_image','invalid_document','encrypted_file','no_text','document_limit','ocr_failed','extraction_failed']
+        const known=['invalid_image','invalid_document','encrypted_file','active_content','unsupported_file','no_text','document_limit','ocr_failed','extraction_failed']
         reject(Error(known.includes(code)?code:'extraction_failed'))
       }catch{reject(Error('extraction_failed'))}
     })

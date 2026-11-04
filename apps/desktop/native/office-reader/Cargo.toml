@@ -1,0 +1,13 @@
+[package]
+name = "office-reader"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+quick-xml = "0.42.0"
+regex = "1.13.1"
+serde_json = "1.0.154"
+zip = { version = "9.3.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+
+[profile.release]
+strip = true
