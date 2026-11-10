@@ -9,11 +9,24 @@ export class SubmissionFlow {
   reset() {
     this.token = null
   }
-  async begin(text: string, requestId: string, resumeWorkId?: string, attachmentIds?: string[], evidenceIds?: string[]) {
+  async begin(
+    text: string,
+    requestId: string,
+    resumeWorkId?: string,
+    attachmentIds?: string[],
+    evidenceIds?: string[]
+  ) {
     const token: Token = { cancelled: false, started: false }
     this.token = token
-    const workId = evidenceIds?.length ? await this.bridge.prepare(text, requestId, undefined, attachmentIds || [], 'vault_context', evidenceIds) : attachmentIds?.length ? await this.bridge.prepare(text, requestId, resumeWorkId, attachmentIds) : await this.bridge.prepare(text, requestId, resumeWorkId)
-    if (this.token !== token) { await this.bridge.discardPrepared?.(workId); return }
+    const workId = evidenceIds?.length
+      ? await this.bridge.prepare(text, requestId, undefined, attachmentIds || [], 'vault_context', evidenceIds)
+      : attachmentIds?.length
+        ? await this.bridge.prepare(text, requestId, resumeWorkId, attachmentIds)
+        : await this.bridge.prepare(text, requestId, resumeWorkId)
+    if (this.token !== token) {
+      await this.bridge.discardPrepared?.(workId)
+      return
+    }
     token.workId = workId
     const pending: HermesState = {
       workId,
@@ -37,7 +50,8 @@ export class SubmissionFlow {
     token.started = true
     try {
       const result = await this.bridge.request({ action: 'start', workId })
-      if (this.token === token && !(token.cancelled && ['running', 'idle'].includes(result.status))) this.publish(result)
+      if (this.token === token && !(token.cancelled && ['running', 'idle'].includes(result.status)))
+        this.publish(result)
     } catch (error) {
       await this.bridge.discardPrepared?.(workId)
       if (this.token !== token) return

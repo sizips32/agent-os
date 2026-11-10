@@ -5,16 +5,18 @@ import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 const python = join(homedir(), '.hermes/hermes-agent/venv/bin/python')
 // Optional local compatibility test. Creates only a fake DB under a temporary HERMES_HOME.
-test.skipIf(!existsSync(python))('installed official SessionDB interface reads only the selected fake conversation without writes', () => {
-  const root = mkdtempSync(join(tmpdir(), 'agent-session-interface-'))
-  try {
-    const result = execFileSync(
-      python,
-      [
-        '-I',
-        '-B',
-        '-c',
-        `import sys,os,importlib.util,hashlib,json,logging
+test.skipIf(!existsSync(python))(
+  'installed official SessionDB interface reads only the selected fake conversation without writes',
+  () => {
+    const root = mkdtempSync(join(tmpdir(), 'agent-session-interface-'))
+    try {
+      const result = execFileSync(
+        python,
+        [
+          '-I',
+          '-B',
+          '-c',
+          `import sys,os,importlib.util,hashlib,json,logging
 from pathlib import Path
 logging.disable(logging.CRITICAL)
 root=Path(sys.argv[1]);os.environ['HERMES_HOME']=str(root);os.environ['HERMES_DISABLE_LAZY_INSTALLS']='1'
@@ -43,13 +45,14 @@ with m.metadata_only_db(SessionDB)(db_path=p,read_only=True) as db:
  else:raise AssertionError('automation source accepted')
  assert hashlib.sha256(p.read_bytes()).hexdigest()==before
 print('official interface / selected only / unchanged')`,
-        root,
-        join(process.cwd(), 'protected/sessions.py')
-      ],
-      { encoding: 'utf8', timeout: 15000, env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } }
-    )
-    expect(result.trim()).toBe('official interface / selected only / unchanged')
-  } finally {
-    rmSync(root, { recursive: true, force: true })
+          root,
+          join(process.cwd(), 'protected/sessions.py')
+        ],
+        { encoding: 'utf8', timeout: 15000, env: { PATH: '/usr/bin:/bin', LANG: 'en_US.UTF-8' } }
+      )
+      expect(result.trim()).toBe('official interface / selected only / unchanged')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
   }
-})
+)

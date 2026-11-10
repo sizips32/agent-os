@@ -7,8 +7,19 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export default function buildOfficeReader() {
   const target = path.join(root, '../../.local/cargo-target')
-  execFileSync('cargo', ['build', '--release', '--locked', '--manifest-path', path.join(root, 'native/office-reader/Cargo.toml'), '--target-dir', target],
-    { stdio: 'inherit', timeout: 600000 })
+  execFileSync(
+    'cargo',
+    [
+      'build',
+      '--release',
+      '--locked',
+      '--manifest-path',
+      path.join(root, 'native/office-reader/Cargo.toml'),
+      '--target-dir',
+      target
+    ],
+    { stdio: 'inherit', timeout: 600000 }
+  )
   mkdirSync(path.join(root, 'dist/native'), { recursive: true })
   copyFileSync(path.join(target, 'release/office-reader'), path.join(root, 'dist/native/office-reader'))
 }

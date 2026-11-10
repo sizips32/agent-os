@@ -20,9 +20,7 @@ def restrict_process():
         if event == "open":
             mode, flags = args[1:3]
             if (isinstance(mode, str) and any(c in mode for c in "wax+")) or (
-                isinstance(flags, int)
-                and flags
-                & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND)
+                isinstance(flags, int) and flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND)
             ):
                 raise PermissionError("admission check is read-only")
         if event in {
@@ -49,16 +47,12 @@ def inspect_config(config, presence):
     if not all(isinstance(v, dict) for v in (model, memory, mcp, plugins)):
         raise ValueError("unsupported config shape")
     enabled = plugins.get("enabled", [])
-    if not isinstance(enabled, list) or not isinstance(
-        memory.get("memory_enabled", True), bool
-    ):
+    if not isinstance(enabled, list) or not isinstance(memory.get("memory_enabled", True), bool):
         raise ValueError("unsupported config shape")
     return {
         "status": "blocked",
         "profile": "giselle",
-        "provider": "openai-codex"
-        if model.get("provider") == "openai-codex"
-        else "other",
+        "provider": "openai-codex" if model.get("provider") == "openai-codex" else "other",
         "memoryEnabled": memory.get("memory_enabled", True),
         "memoryFilesPresent": presence,
         "memoryLoaded": False,
@@ -68,15 +62,11 @@ def inspect_config(config, presence):
         "nativeImageAllowed": model.get("supports_vision") is True
         and isinstance(config.get("agent", {}), dict)
         and config.get("agent", {}).get("image_input_mode") == "native",
-        "enabledMcpCount": sum(
-            isinstance(v, dict) and v.get("enabled", True) is not False
-            for v in mcp.values()
-        ),
+        "enabledMcpCount": sum(isinstance(v, dict) and v.get("enabled", True) is not False for v in mcp.values()),
         "enabledPluginCount": len(enabled),
         "automaticDispatch": False,
         "manualPolicy": config.get("approvals", {}).get("mode", "manual") == "manual",
-        "singleQueryDeny": config.get("approvals", {}).get("single_query_mode", "deny")
-        == "deny",
+        "singleQueryDeny": config.get("approvals", {}).get("single_query_mode", "deny") == "deny",
     }
 
 
@@ -97,8 +87,7 @@ def read_metadata(profile):
 
     config = yaml.safe_load(raw)
     present = all(
-        (profile / "memories" / name).is_file()
-        and not (profile / "memories" / name).is_symlink()
+        (profile / "memories" / name).is_file() and not (profile / "memories" / name).is_symlink()
         for name in ("MEMORY.md", "USER.md")
     )
     return inspect_config(config, present)

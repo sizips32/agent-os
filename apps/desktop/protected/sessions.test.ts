@@ -23,26 +23,60 @@ test('summary reads are bounded and authorized, preserve references and never pe
     ledger.settle(id, { status: 'completed', sessionId: 'selected_cli', text: '', reason: '', verification: '' })
     const before = readFileSync(join(root, id + '.json'), 'utf8')
     const calls: string[] = []
-    const sessions = new Sessions(ledger, '', async () => body, undefined, async (session) => { calls.push(session); return { title: '오늘 한국어 질문을 정리해 줘', startedAt: 1700000000 } })
-    for (const invalid of [[id, 'work_' + 'd'.repeat(32)], ['latest'], Array(11).fill(id), null]) await expect(sessions.summaries(invalid)).rejects.toThrow()
+    const sessions = new Sessions(
+      ledger,
+      '',
+      async () => body,
+      undefined,
+      async session => {
+        calls.push(session)
+        return { title: '오늘 한국어 질문을 정리해 줘', startedAt: 1700000000 }
+      }
+    )
+    for (const invalid of [[id, 'work_' + 'd'.repeat(32)], ['latest'], Array(11).fill(id), null])
+      await expect(sessions.summaries(invalid)).rejects.toThrow()
     expect(calls).toEqual([])
-    expect(await sessions.summaries([id, id])).toEqual([{ workId: id, title: '오늘 한국어 질문을 정리해 줘', startedAt: 1700000000, unavailable: false }])
+    expect(await sessions.summaries([id, id])).toEqual([
+      { workId: id, title: '오늘 한국어 질문을 정리해 줘', startedAt: 1700000000, unavailable: false }
+    ])
     expect(calls).toEqual(['selected_cli'])
     expect((await sessions.open(id)).sessionId).toBe('selected_cli')
     expect(readFileSync(join(root, id + '.json'), 'utf8')).toBe(before)
     expect(readdirSync(root)).toEqual([id + '.json'])
-  } finally { rmSync(root, { recursive: true, force: true }) }
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
-test.each([null, { title: 'x'.repeat(201), startedAt: null }, { title: 'bad\ncontrol', startedAt: null }, { title: 'safe', startedAt: 'wrong' }])('malformed summary becomes honest unavailable fallback', async (value) => {
+test.each([
+  null,
+  { title: 'x'.repeat(201), startedAt: null },
+  { title: 'bad\ncontrol', startedAt: null },
+  { title: 'safe', startedAt: 'wrong' }
+])('malformed summary becomes honest unavailable fallback', async value => {
   const root = mkdtempSync(join(tmpdir(), 'agent-title-invalid-'))
   try {
-    const ledger = new FileAcpLedger(root); ledger.claim(id, 'a'.repeat(64)); ledger.settle(id, { status: 'completed', sessionId: 'selected_cli', text: '', reason: '', verification: '' })
-    expect(await new Sessions(ledger, '', undefined, undefined, async () => value).summaries([id])).toEqual([{ workId: id, title: null, startedAt: null, unavailable: true }])
-    expect(await new Sessions(ledger, '', undefined, undefined, async () => { throw Error('private failure') }).summaries([id])).toEqual([{ workId: id, title: null, startedAt: null, unavailable: true }])
-  } finally { rmSync(root, { recursive: true, force: true }) }
+    const ledger = new FileAcpLedger(root)
+    ledger.claim(id, 'a'.repeat(64))
+    ledger.settle(id, { status: 'completed', sessionId: 'selected_cli', text: '', reason: '', verification: '' })
+    expect(await new Sessions(ledger, '', undefined, undefined, async () => value).summaries([id])).toEqual([
+      { workId: id, title: null, startedAt: null, unavailable: true }
+    ])
+    expect(
+      await new Sessions(ledger, '', undefined, undefined, async () => {
+        throw Error('private failure')
+      }).summaries([id])
+    ).toEqual([{ workId: id, title: null, startedAt: null, unavailable: true }])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
 })
 test('first question helper is chronological, Korean-safe, bounded, redacted and excludes summaries/system/tool/assistant', () => {
-  const result = execFileSync('python3', ['-B', '-c', `import sys,importlib.util
+  const result = execFileSync(
+    'python3',
+    [
+      '-B',
+      '-c',
+      `import sys,importlib.util
 s=importlib.util.spec_from_file_location('reader','protected/sessions.py');m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
 class DB:
  def __init__(self,rows):self.rows=rows
@@ -65,7 +99,10 @@ for text in ['', 'secret fixture']:
  assert m.read_summary(DB([{'role':'user','content':text}]),'tip',redact)['title'] is None
 assert m.read_summary(DB([{'role':'system','content':'x'}]*61),'tip',redact)['title'] is None
 assert m.read_summary(DB([{'role':'user','content':'first question'},{'role':'user','content':'later'}]),'tip',redact)['title']=='first question'
-print('first-question-only / bounded / redacted')`], { encoding: 'utf8' })
+print('first-question-only / bounded / redacted')`
+    ],
+    { encoding: 'utf8' }
+  )
   expect(result.trim()).toBe('first-question-only / bounded / redacted')
 })
 test('only an app-owned exact work receipt can read, and restart restores by reference only', async () => {
@@ -122,7 +159,7 @@ test.each([
   { ...body, messages: [{ role: 'system', text: 'memory' }] },
   { ...body, messages: [{ role: 'user', text: 'x'.repeat(12001) }] },
   { ...body, messages: Array(61).fill(body.messages[0]) }
-])('malformed helper output fails closed', (v) => expect(() => conversationResult(v)).toThrow())
+])('malformed helper output fails closed', v => expect(() => conversationResult(v)).toThrow())
 test('official read helper uses only selected lineage, bounded messages and forced redaction', () => {
   const result = execFileSync(
     'python3',

@@ -26,12 +26,12 @@ test('cancel before prepare completes prevents any start request', async () => {
   const flow = new SubmissionFlow(
     {
       prepare: () => prepare.promise,
-      request: async (op) => {
+      request: async op => {
         calls.push(op.action)
         return state('idle')
       }
     },
-    (s) => states.push(s)
+    s => states.push(s)
   )
   const pending = flow.begin('local', 'key')
   await flow.cancel()
@@ -47,7 +47,7 @@ test('accepted work publishes pending before start settles; preflight cancel pre
   const flow = new SubmissionFlow(
     {
       prepare: async () => id,
-      request: async (op) => {
+      request: async op => {
         if (op.action === 'cancel') {
           cancelled = true
           return state('idle')
@@ -55,7 +55,7 @@ test('accepted work publishes pending before start settles; preflight cancel pre
         return start.promise
       }
     },
-    (s) => states.push(s)
+    s => states.push(s)
   )
   const pending = flow.begin('local', 'key')
   await Promise.resolve()
@@ -74,12 +74,12 @@ test('cancel after first partial reply forwards only cancel and preserves partia
   const flow = new SubmissionFlow(
     {
       prepare: async () => id,
-      request: async (op) => {
+      request: async op => {
         calls.push(op.action)
         return state(op.action === 'start' ? 'running' : 'unknown', 'partial')
       }
     },
-    (s) => states.push(s)
+    s => states.push(s)
   )
   await flow.begin('local', 'key')
   await flow.cancel()
@@ -93,7 +93,7 @@ test('completion that wins the cancel race remains completed', async () => {
       prepare: async () => id,
       request: async () => state('completed', 'final')
     },
-    (s) => states.push(s)
+    s => states.push(s)
   )
   await flow.begin('local', 'key')
   await flow.cancel()
@@ -105,12 +105,12 @@ test('start rejection clears pending to unknown without a retry', async () => {
   const flow = new SubmissionFlow(
     {
       prepare: async () => id,
-      request: async (op) => {
+      request: async op => {
         calls.push(op.action)
         throw Error('preflight denied')
       }
     },
-    (s) => states.push(s)
+    s => states.push(s)
   )
   await expect(flow.begin('local', 'key')).rejects.toThrow('preflight denied')
   expect(states.at(-1)?.status).toBe('unknown')
@@ -125,10 +125,14 @@ test('late start and cancellation replies cannot replace a later request', async
   const flow = new SubmissionFlow(
     {
       prepare: async () => (++count === 1 ? id : next),
-      request: async (op) =>
-        op.action === 'cancel' ? cancel.promise : op.workId === id ? old.promise : { ...state('completed', 'new'), workId: next }
+      request: async op =>
+        op.action === 'cancel'
+          ? cancel.promise
+          : op.workId === id
+            ? old.promise
+            : { ...state('completed', 'new'), workId: next }
     },
-    (s) => seen.push(s)
+    s => seen.push(s)
   )
   const first = flow.begin('old', '1')
   await Promise.resolve()
@@ -151,9 +155,9 @@ test('late running start cannot overwrite an already observed cancellation', asy
   const flow = new SubmissionFlow(
     {
       prepare: async () => id,
-      request: async (op) => (op.action === 'start' ? delayed.promise : state('unknown', 'partial'))
+      request: async op => (op.action === 'start' ? delayed.promise : state('unknown', 'partial'))
     },
-    (s) => seen.push(s)
+    s => seen.push(s)
   )
   const begin = flow.begin('local', 'key')
   await Promise.resolve()
@@ -167,8 +171,8 @@ test('reset after selecting another view invalidates a late cancellation reply',
   const delayed = deferred<HermesState>(),
     seen: HermesState[] = []
   const flow = new SubmissionFlow(
-    { prepare: async () => id, request: async (op) => (op.action === 'cancel' ? delayed.promise : state('completed')) },
-    (s) => seen.push(s)
+    { prepare: async () => id, request: async op => (op.action === 'cancel' ? delayed.promise : state('completed')) },
+    s => seen.push(s)
   )
   await flow.begin('local', 'key')
   const cancel = flow.cancel()
@@ -179,15 +183,42 @@ test('reset after selecting another view invalidates a late cancellation reply',
   expect(seen).toHaveLength(count)
 })
 test('cancelled prepare releases its owned attachment snapshot without dispatch', async () => {
-  const prepare = deferred<string>(), discarded: string[] = [], calls: string[] = []
-  const flow = new SubmissionFlow({ prepare: () => prepare.promise, discardPrepared: async (id) => { discarded.push(id) }, request: async (op) => { calls.push(op.action); return state('idle') } }, () => {})
+  const prepare = deferred<string>(),
+    discarded: string[] = [],
+    calls: string[] = []
+  const flow = new SubmissionFlow(
+    {
+      prepare: () => prepare.promise,
+      discardPrepared: async id => {
+        discarded.push(id)
+      },
+      request: async op => {
+        calls.push(op.action)
+        return state('idle')
+      }
+    },
+    () => {}
+  )
   const pending = flow.begin('draft', 'key', undefined, ['attachment_' + 'a'.repeat(32)])
-  await flow.cancel(); prepare.resolve(id); await pending
-  expect(discarded).toEqual([id]); expect(calls).toEqual([])
+  await flow.cancel()
+  prepare.resolve(id)
+  await pending
+  expect(discarded).toEqual([id])
+  expect(calls).toEqual([])
 })
 test('a plain YouTube URL remains ordinary text and never invokes an attachment path', async () => {
-  const prompt='https://youtu.be/fixture123?si=fixture 이 영상을 분석해 주세요', calls: unknown[][]=[]
-  const flow = new SubmissionFlow({prepare:async(...args)=>{calls.push(args);return id},request:async()=>state('completed','fixture analysis')},()=>{})
-  await flow.begin(prompt,'request key',undefined,[])
-  expect(calls).toEqual([[prompt,'request key',undefined]])
+  const prompt = 'https://youtu.be/fixture123?si=fixture 이 영상을 분석해 주세요',
+    calls: unknown[][] = []
+  const flow = new SubmissionFlow(
+    {
+      prepare: async (...args) => {
+        calls.push(args)
+        return id
+      },
+      request: async () => state('completed', 'fixture analysis')
+    },
+    () => {}
+  )
+  await flow.begin(prompt, 'request key', undefined, [])
+  expect(calls).toEqual([[prompt, 'request key', undefined]])
 })

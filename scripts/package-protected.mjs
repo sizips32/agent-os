@@ -6,14 +6,23 @@ import { fileURLToPath } from 'node:url'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 await mkdir(path.join(root, '.local'), { recursive: true })
 const staged = await mkdtemp(path.join(root, '.local/package-input-'))
-await cp(path.join(root, 'apps/desktop/dist'), path.join(staged, 'dist'), { recursive: true, filter: (p) => !p.endsWith('.map') })
+await cp(path.join(root, 'apps/desktop/dist'), path.join(staged, 'dist'), {
+  recursive: true,
+  filter: p => !p.endsWith('.map')
+})
 // Include only node-pty runtime JS and platform N-API binaries.
 const ptyTarget = path.join(staged, 'node_modules/node-pty')
 await mkdir(ptyTarget, { recursive: true })
 for (const name of ['package.json', 'LICENSE', 'lib']) {
-  await cp(path.join(root, 'node_modules/node-pty', name), path.join(ptyTarget, name), { recursive: true, filter: p => !p.endsWith('.map') && !p.endsWith('.test.js') })
+  await cp(path.join(root, 'node_modules/node-pty', name), path.join(ptyTarget, name), {
+    recursive: true,
+    filter: p => !p.endsWith('.map') && !p.endsWith('.test.js')
+  })
 }
-await writeFile(path.join(ptyTarget, 'package.json'), JSON.stringify({ name: 'node-pty', version: '1.1.0', main: 'lib/index.js', license: 'MIT' }))
+await writeFile(
+  path.join(ptyTarget, 'package.json'),
+  JSON.stringify({ name: 'node-pty', version: '1.1.0', main: 'lib/index.js', license: 'MIT' })
+)
 const nativePath = path.join(ptyTarget, 'prebuilds/darwin-arm64')
 await mkdir(nativePath, { recursive: true })
 await cp(path.join(root, 'node_modules/node-pty/prebuilds/darwin-arm64'), nativePath, { recursive: true })
@@ -47,13 +56,19 @@ await build({
       { from: path.join(root, 'apps/desktop/protected/task_report.py'), to: 'protected/task_report.py' },
       { from: path.join(root, 'apps/desktop/dist/native/document-reader'), to: 'protected/document-reader' },
       { from: path.join(root, 'apps/desktop/dist/native/office-reader'), to: 'protected/office-reader' },
-      { from: path.join(root, 'apps/desktop/protected/document-third-party-licenses.txt'), to: 'protected/document-third-party-licenses.txt' },
+      {
+        from: path.join(root, 'apps/desktop/protected/document-third-party-licenses.txt'),
+        to: 'protected/document-third-party-licenses.txt'
+      },
       { from: path.join(root, 'apps/desktop/protected/vault-publish.py'), to: 'protected/vault-publish.py' },
       { from: path.join(root, 'apps/desktop/protected/vault-query.py'), to: 'protected/vault-query.py' },
       { from: path.join(root, 'apps/desktop/protected/diagnostics.py'), to: 'protected/diagnostics.py' },
       { from: path.join(root, 'apps/desktop/protected/sessions.py'), to: 'protected/sessions.py' },
       { from: path.join(root, 'apps/desktop/protected/admission.py'), to: 'protected/admission.py' },
-      { from: path.join(root, 'apps/desktop/protected/hermes-cli.fixture.cjs'), to: 'protected/hermes-cli.fixture.cjs' },
+      {
+        from: path.join(root, 'apps/desktop/protected/hermes-cli.fixture.cjs'),
+        to: 'protected/hermes-cli.fixture.cjs'
+      },
       { from: path.join(root, 'LICENSE'), to: 'LICENSE' },
       { from: path.join(root, 'NOTICE'), to: 'NOTICE' }
     ]

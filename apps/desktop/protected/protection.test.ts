@@ -19,7 +19,8 @@ describe('protected boundaries', () => {
     const a = new Apps(async () => {
       throw Error('must not open')
     })
-    for (const id of ['/Applications/Buzz.app', '$(touch /tmp/test)', '../x', 'a'.repeat(64)]) await expect(a.launch(id)).rejects.toThrow()
+    for (const id of ['/Applications/Buzz.app', '$(touch /tmp/test)', '../x', 'a'.repeat(64)])
+      await expect(a.launch(id)).rejects.toThrow()
   })
   test('bounded prompts and stable submission identifiers', () => {
     const uuid = '12345678-1234-1234-1234-123456789012'
@@ -39,7 +40,14 @@ describe('protected boundaries', () => {
   })
   test('boot entry cannot run upstream initialization or bootstrap writes', () => {
     const main = readFileSync('protected/main.ts', 'utf8')
-    for (const unsafe of ['ensureBridgePlugin(', 'migrateLegacyData(', 'BackendManager(', 'syncHermesSkin(', 'registerVoiceIpc(', 'registerTerminalIpc('])
+    for (const unsafe of [
+      'ensureBridgePlugin(',
+      'migrateLegacyData(',
+      'BackendManager(',
+      'syncHermesSkin(',
+      'registerVoiceIpc(',
+      'registerTerminalIpc('
+    ])
       expect(main).not.toContain(unsafe)
     const bootstrap = readFileSync('../../scripts/bootstrap.sh', 'utf8')
     expect(bootstrap).not.toMatch(/plugins enable|tools enable|config set|rm -rf|hermes setup/)

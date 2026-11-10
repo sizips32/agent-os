@@ -17,11 +17,11 @@ test('repeat clicks coalesce and only selected discovered bundle reaches opener'
   const f = fixture()
   let count = 0
   let release!: () => void
-  const waiting = new Promise<string>((r) => {
+  const waiting = new Promise<string>(r => {
     release = () => r('')
   })
   const apps = new Apps(
-    async (p) => {
+    async p => {
       expect(p).toBe(f.bundle)
       count++
       return waiting
@@ -32,7 +32,7 @@ test('repeat clicks coalesce and only selected discovered bundle reaches opener'
     const [entry] = await apps.list()
     const first = apps.launch(entry.id)
     await apps.launch(entry.id)
-    for (let n = 0; n < 100 && count === 0; n++) await new Promise((r) => setTimeout(r, 10))
+    for (let n = 0; n < 100 && count === 0; n++) await new Promise(r => setTimeout(r, 10))
     expect(count).toBe(1)
     release()
     await first

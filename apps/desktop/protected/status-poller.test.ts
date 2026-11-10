@@ -17,23 +17,26 @@ function deferred<T>() {
   })
   return { resolve, reject, promise }
 }
-test.each(['work switch', 'cancel', 'new request', 'unmount/restart'])('%s invalidates an outstanding reply', async () => {
-  const d = deferred<HermesState>(),
-    seen: HermesState[] = []
-  const poll = new StatusPoller(
-    'old',
-    () => d.promise,
-    (s) => seen.push(s),
-    () => {
-      throw Error('stale error')
-    }
-  )
-  const task = poll.tick()
-  poll.stop()
-  d.resolve(state('old'))
-  await task
-  expect(seen).toEqual([])
-})
+test.each(['work switch', 'cancel', 'new request', 'unmount/restart'])(
+  '%s invalidates an outstanding reply',
+  async () => {
+    const d = deferred<HermesState>(),
+      seen: HermesState[] = []
+    const poll = new StatusPoller(
+      'old',
+      () => d.promise,
+      s => seen.push(s),
+      () => {
+        throw Error('stale error')
+      }
+    )
+    const task = poll.tick()
+    poll.stop()
+    d.resolve(state('old'))
+    await task
+    expect(seen).toEqual([])
+  }
+)
 test('queries cannot overlap or overwrite a completed result out of order', async () => {
   const d = deferred<HermesState>()
   let calls = 0
@@ -44,7 +47,7 @@ test('queries cannot overlap or overwrite a completed result out of order', asyn
       calls++
       return d.promise
     },
-    (s) => seen.push(s),
+    s => seen.push(s),
     () => {}
   )
   const first = poll.tick()

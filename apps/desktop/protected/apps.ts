@@ -25,7 +25,7 @@ export class Apps {
       } catch {
         continue
       }
-      for (const name of names.filter((n) => n.endsWith('.app'))) {
+      for (const name of names.filter(n => n.endsWith('.app'))) {
         try {
           const p = path.join(root, name)
           const actual = await realpath(p)
@@ -47,7 +47,7 @@ export class Apps {
       }
     }
     this.entries = next
-    return [...next.values()].map((e) => e.view).sort((a, b) => a.name.localeCompare(b.name))
+    return [...next.values()].map(e => e.view).sort((a, b) => a.name.localeCompare(b.name))
   }
   async launch(id: unknown): Promise<void> {
     if (typeof id !== 'string' || !/^[a-f0-9]{64}$/.test(id)) throw Error('Invalid application selection')
@@ -56,7 +56,8 @@ export class Apps {
     if (this.launching.has(id)) return
     this.launching.add(id)
     try {
-      if ((await realpath(e.path)) !== e.path || !approvedPath(e.path, e.root)) throw Error('App path changed; refresh the list')
+      if ((await realpath(e.path)) !== e.path || !approvedPath(e.path, e.root))
+        throw Error('App path changed; refresh the list')
       const { stdout } = await promisify(execFile)(
         '/usr/bin/plutil',
         ['-extract', 'CFBundleIdentifier', 'raw', '-o', '-', path.join(e.path, 'Contents/Info.plist')],
