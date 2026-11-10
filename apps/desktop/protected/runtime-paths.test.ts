@@ -17,5 +17,7 @@ test('development and fixture state remain isolated', () => {
   const p = protectedRuntimePaths(false, '/unused', '/repo/apps/desktop/dist/electron', '/unused', false)
   expect(p.admission).toBe('/repo/apps/desktop/protected/admission.py')
   expect(p.data).toBe('/repo/.local/protected-herald')
-  expect(protectedRuntimePaths(false, '/unused', '/repo/apps/desktop/dist/electron', '/unused', true).data).toBe('/repo/.local/protected-herald-fixture')
+  expect(protectedRuntimePaths(false, '/unused', '/repo/apps/desktop/dist/electron', '/unused', true).data).toBe(
+    '/repo/.local/protected-herald-fixture'
+  )
 })

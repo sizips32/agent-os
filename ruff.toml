@@ -1,0 +1,7 @@
+line-length = 120
+# task_report.py is a byte-identical copy of coordination/helper/task_report.py (see test_task_report_sync.py).
+extend-exclude = ["apps/desktop/protected/task_report.py"]
+
+[lint]
+# type(x) is int is deliberate: bool must not pass as int.
+ignore = ["E721", "E731"]

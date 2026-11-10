@@ -28,7 +28,15 @@ test('child sandbox denies config and memory writes while allowing owned session
     expect(deny.status).not.toBe(0)
     expect(readFileSync(config, 'utf8')).toBe('unchanged')
     expect(readFileSync(memory, 'utf8')).toBe('unchanged')
-    const allow = spawnSync('/usr/bin/sandbox-exec', ['-p', hermesProtection(root), '/bin/sh', '-c', 'printf owned > "$1"', 'protected-test', session])
+    const allow = spawnSync('/usr/bin/sandbox-exec', [
+      '-p',
+      hermesProtection(root),
+      '/bin/sh',
+      '-c',
+      'printf owned > "$1"',
+      'protected-test',
+      session
+    ])
     expect(allow.status).toBe(0)
     expect(readFileSync(session, 'utf8')).toBe('owned')
   } finally {

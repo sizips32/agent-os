@@ -1,7 +1,15 @@
 import hermesAvatarUrl from '../assets/brand/hermes-avatar.jpg'
 import { cn } from '../lib/cn.ts'
 
-export function HermesAvatar({ size = 40, className, rounded = 10 }: { size?: number; className?: string; rounded?: number }) {
+export function HermesAvatar({
+  size = 40,
+  className,
+  rounded = 10
+}: {
+  size?: number
+  className?: string
+  rounded?: number
+}) {
   return (
     <img
       src={hermesAvatarUrl}

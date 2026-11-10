@@ -11,7 +11,6 @@ Requires macOS, Node 22.12 or later and a Rust toolchain (`cargo`) to build the 
 From the repository root:
 
 ```sh
-cd apps/agent-os
 npm ci
 npm run typecheck
 npm test

@@ -17,6 +17,10 @@
     "test": "npm run test --workspace apps/desktop -- --maxWorkers=1",
     "package:protected": "npm run build && node scripts/package-protected.mjs",
     "test:coordination": "python3 -B -m unittest discover -s coordination/tests -p \"test_*.py\"",
-    "test:services": "python3 -B -m unittest discover -s ops/macos -p \"test_*.py\""
+    "test:services": "python3 -B -m unittest discover -s ops/macos -p \"test_*.py\"",
+    "lint": "biome check && ruff check apps/desktop/protected && ruff format --check apps/desktop/protected",
+    "format": "biome format --write && ruff format apps/desktop/protected",
+    "test:e2e": "npm run test:e2e --workspace apps/desktop",
+    "postinstall": "node scripts/fix-node-pty-permissions.mjs"
   }
 }

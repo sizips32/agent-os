@@ -14,6 +14,9 @@ type R<T> = Result<T, &'static str>;
 const MB: u64 = 1024 * 1024;
 const FILE_MAX: u64 = 16 * MB;
 const TEXT_LIMIT: usize = 200_000; // UTF-16 code units, same as JS String.length
+// Real Office parts nest a few dozen levels. A deeper tree is hostile and would overflow the stack
+// in the recursive walkers and in drop, so it is refused while parsing.
+const MAX_DEPTH: usize = 256;
 
 static DOCTYPE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)<!DOCTYPE|<!ENTITY").unwrap());
 static ACTIVE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)vbaProject|embeddings/|externalLinks/").unwrap());
@@ -128,6 +131,7 @@ fn xml(text: &str) -> R<Elem> {
         match reader.read_event().map_err(bad)? {
             Event::Start(e) => {
                 if stack.len() == 1 { roots += 1 }
+                if stack.len() > MAX_DEPTH { return Err("invalid_document") }
                 stack.push(open(&e)?)
             }
             Event::Empty(e) => {
@@ -354,18 +358,4 @@ fn main() {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn entities_and_wellformedness() {
-        assert_eq!(xml("<a>x &amp; &lt;y&gt; &#65;</a>").unwrap().one("a").unwrap().direct_text(), "x & <y> &#65;");
-        assert!(xml("<a/><b/>tail").is_ok());
-        for bad in ["", "<a>", "<a></b>", "text<a/>", "<a>&broken</a>", "<a b='1' b='2'/>"] {
-            assert!(xml(bad).is_err(), "{bad}");
-        }
-    }
-    #[test]
-    fn utf16_truncation_counts_like_js() {
-        assert_eq!("😀".encode_utf16().count(), 2);
-    }
-}
+mod tests;

@@ -18,7 +18,9 @@ export const diagnosticLabels = {
 }
 export function diagnostic(code: unknown, fixtureMode = false): ProfileDiagnostic {
   const key =
-    typeof code === 'string' && Object.hasOwn(diagnosticLabels, code) ? (code as keyof typeof diagnosticLabels) : 'diagnostic_unavailable'
+    typeof code === 'string' && Object.hasOwn(diagnosticLabels, code)
+      ? (code as keyof typeof diagnosticLabels)
+      : 'diagnostic_unavailable'
   return {
     profile: 'giselle',
     ready: key === 'ready',

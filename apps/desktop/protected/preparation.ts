@@ -9,6 +9,10 @@ export class PreparationGate<T> {
     }
     const promise = Promise.resolve().then(prepare)
     this.pending.set(key, { fingerprint, promise })
-    try { return await promise } finally { this.pending.delete(key) }
+    try {
+      return await promise
+    } finally {
+      this.pending.delete(key)
+    }
   }
 }
