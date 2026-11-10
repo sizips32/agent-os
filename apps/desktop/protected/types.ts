@@ -111,6 +111,8 @@ export interface ProtectedBridge {
     evidenceIds?: string[]
   ): Promise<string>
   request(operation: HermesOperation): Promise<HermesState>
+  /** Pushed state of the running request. Returns an unsubscribe function. */
+  onHermesState(listener: (state: HermesState) => void): () => void
   profile(): Promise<ProfileDiagnostic>
   quit(): Promise<void>
 }

@@ -5,8 +5,8 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, lstatSync, realpathSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import type { Conversation, ConversationSummary } from './types'
-import { FileAcpLedger } from './acp-ledger'
-import { VaultResults } from './vault-results'
+import type { FileAcpLedger } from './acp-ledger'
+import type { VaultResults } from './vault-results'
 import { SESSION_NOT_FOUND, VAULT_RECORD_UNAVAILABLE } from './session-messages'
 export function validSession(id: unknown): id is string {
   return typeof id === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(id) && !['latest', 'default'].includes(id)

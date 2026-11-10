@@ -50,7 +50,7 @@ beforeEach(() => {
   host = document.createElement('div')
   document.body.append(host)
   root = createRoot(host)
-  let discoveryState: DiscoveryStoreView = { revision: 0, records: {}, trash: {}, applied: [] }
+  const discoveryState: DiscoveryStoreView = { revision: 0, records: {}, trash: {}, applied: [] }
   bridge = {
     taskReport: vi.fn(),
     terminal: { open: vi.fn(), write: vi.fn(), resize: vi.fn(), acknowledge: vi.fn(), onEvent: vi.fn(() => () => {}) },
@@ -92,6 +92,7 @@ beforeEach(() => {
     discardPrepared: vi.fn(async () => {}),
     prepare: vi.fn(async () => work),
     request: vi.fn(async () => receipt()),
+    onHermesState: vi.fn(() => () => {}),
     conversation: vi.fn(async () => ({
       workId: work,
       sessionId: 'fixture_session',
@@ -942,4 +943,62 @@ test('OCR failure is not corruption and partial OCR requires review', async () =
   expect(host.textContent).toContain('부분 인식 · 일부 글자·언어 누락 가능')
   expect(button('전송').disabled).toBe(true)
   expect(bridge.request).not.toHaveBeenCalled()
+})
+test('pushed state drives the running view without a status read; other work is ignored; completion ends it', async () => {
+  let push!: (state: HermesState) => void
+  const unsubscribe = vi.fn()
+  bridge.onHermesState = vi.fn(listener => {
+    push = listener
+    return unsubscribe
+  })
+  bridge.request = vi.fn(async () => ({ ...receipt('running'), text: 'started' }))
+  await mount()
+  await input('fixture request')
+  await click(button('전송'))
+  expect(host.textContent).toContain('started')
+  expect(bridge.request).toHaveBeenCalledTimes(1)
+  await act(async () => push({ ...receipt('running'), text: 'pushed delta' }))
+  expect(host.textContent).toContain('pushed delta')
+  await act(async () => push({ ...receipt('running'), workId: 'work_' + 'b'.repeat(32), text: 'other work text' }))
+  expect(host.textContent).not.toContain('other work text')
+  expect(host.textContent).toContain('pushed delta')
+  await act(async () => push({ ...receipt('completed'), text: 'final text' }))
+  expect(host.textContent).toContain('final text')
+  expect(host.textContent).toContain('응답 수신')
+  expect(unsubscribe).toHaveBeenCalled()
+  expect(bridge.request).toHaveBeenCalledTimes(1)
+})
+
+test('Cmd+Enter in the composer sends through the real send button', async () => {
+  await mount()
+  await input('fixture request')
+  await act(async () => {
+    host
+      .querySelector('[aria-label="지젤에게 보낼 요청"]')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, cancelable: true }))
+  })
+  expect(bridge.prepare).toHaveBeenCalledTimes(1)
+})
+test('Cmd+Enter does nothing while the send button is disabled', async () => {
+  await mount()
+  await act(async () => {
+    host
+      .querySelector('[aria-label="지젤에게 보낼 요청"]')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, cancelable: true }))
+  })
+  expect(bridge.prepare).not.toHaveBeenCalled()
+})
+
+test('Cmd+Enter from a field outside the composer never sends the composer text', async () => {
+  await mount()
+  await input('fixture request')
+  const other = document.createElement('input')
+  host.append(other)
+  await act(async () => {
+    other.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, cancelable: true }))
+    document.body.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', metaKey: true, bubbles: true, cancelable: true })
+    )
+  })
+  expect(bridge.prepare).not.toHaveBeenCalled()
 })

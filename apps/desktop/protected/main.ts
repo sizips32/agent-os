@@ -16,7 +16,8 @@ import { protectedRuntimePaths } from './runtime-paths.ts'
 import { prepareInput } from './input.ts'
 import { PreparationGate } from './preparation.ts'
 import { Vault } from './vault.ts'
-import { vaultCompose, VAULT_SYSTEM_PROMPT } from './vault-types.ts'
+import { vaultCompose, VAULT_SYSTEM_PROMPT, type VaultCommand } from './vault-types.ts'
+import type { DiscoveryCommand } from './discovery-state.ts'
 import { vaultProtection } from './sandbox.ts'
 import { VaultResults } from './vault-results.ts'
 import { execFile } from 'node:child_process'
@@ -24,6 +25,8 @@ import { promisify } from 'node:util'
 import { ResultControls, copyResultText } from './result-controls.ts'
 import { DiscoveryStore } from './discovery-store.ts'
 import { Attachments, attachmentIds } from './attachments.ts'
+import { PreparedRequests } from './prepared-requests.ts'
+import { IPC, type IpcArgs, type IpcChannel } from './ipc-args.ts'
 import type { WorkDetail } from './types.ts'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const fixtureMode = ['wait', 'invalid', 'preflight', 'stream-wait', 'complete'].includes(
@@ -81,16 +84,7 @@ const attachments = new Attachments(nativeHelper('document-reader'), undefined, 
 const preparation = new PreparationGate<string>()
 let filePickerOpen = false
 const works = new Map<string, WorkDetail>()
-const prepared = new Map<
-  string,
-  {
-    text: string
-    id: string
-    resumeWorkId?: string
-    attachmentRefs: string[]
-    purpose?: 'discovery_questions' | 'vault_context'
-  }
->()
+const prepared = new PreparedRequests()
 const apps = new Apps(p => shell.openPath(p))
 const ledger = new FileAcpLedger(path.join(data, 'submissions'))
 const vaultResults = new VaultResults(path.join(data, 'vault-results'))
@@ -148,7 +142,15 @@ const hermes = new HermesCli(ledger, {
     return w
   },
   imagePolicy: async () => (fixtureMode ? false : (await diagnose(runtime.diagnostics)).nativeImageAllowed === true),
-  release: id => attachments.release(id),
+  onState: state => emitToRenderer('protected:hermes-event', state),
+  release: async id => {
+    try {
+      await attachments.release(id)
+    } finally {
+      // The request is settled; the CLI no longer needs its instructions (record() runs before release).
+      works.delete(id)
+    }
+  },
   vaultLaunch: async () => {
     if (fixtureMode)
       return spawn(
@@ -197,21 +199,23 @@ const resultControls = new ResultControls(path.join(data, 'result-view'), async 
 let win: BrowserWindow | null = null
 let quitting = false
 let quitPending = false
+/** Pushes to the app page only: the main frame, still on the packaged renderer URL. */
+function emitToRenderer(channel: string, payload: unknown) {
+  if (
+    win &&
+    !win.isDestroyed() &&
+    win.webContents.mainFrame.url === pathToFileURL(path.join(here, '../renderer/index.html')).href
+  ) {
+    win.webContents.mainFrame.send(channel, payload)
+  }
+}
 const localTerminal = new LocalTerminal(
   (file, args, options) => {
     const requirePty = createRequire(import.meta.url)
     const module = requirePty('node-pty') as { spawn: SpawnPty }
     return module.spawn(file, args, options)
   },
-  event => {
-    if (
-      win &&
-      !win.isDestroyed() &&
-      win.webContents.mainFrame.url === pathToFileURL(path.join(here, '../renderer/index.html')).href
-    ) {
-      win.webContents.mainFrame.send('protected:terminal-event', event)
-    }
-  },
+  event => emitToRenderer('protected:terminal-event', event),
   !!fixtureMode
 )
 function trusted(event: Electron.IpcMainInvokeEvent) {
@@ -221,20 +225,21 @@ function trusted(event: Electron.IpcMainInvokeEvent) {
   if (url !== pathToFileURL(path.join(here, '../renderer/index.html')).href) throw Error('Untrusted page')
 }
 function register() {
-  const handle = (channel: string, fn: (...args: any[]) => unknown) =>
+  const handle = <K extends IpcChannel>(channel: K, fn: (...args: IpcArgs<K>) => unknown) =>
     ipcMain.handle(channel, (event, ...args) => {
       trusted(event)
-      return fn(...args)
+      return fn(...(IPC[channel](args) as IpcArgs<K>))
     })
   handle('protected:terminal-open', size => localTerminal.open(size))
   handle('protected:terminal-write', (id, text) => localTerminal.write(id, text))
   handle('protected:terminal-ack', (id, bytes) => localTerminal.acknowledge(id, bytes))
   handle('protected:terminal-resize', (id, size) => localTerminal.resize(id, size))
   handle('protected:task-report', taskId => taskInspector.report(taskId))
-  handle('protected:vault', command => vault.execute(command))
+  // Command objects are validated field by field inside the consumer.
+  handle('protected:vault', command => vault.execute(command as VaultCommand))
   handle('protected:copy-result', text => copyResultText(text, value => clipboard.writeText(value)))
   handle('protected:result-control', command => resultControls.execute(command))
-  handle('protected:discovery', command => discoveryStore.execute(command))
+  handle('protected:discovery', command => discoveryStore.execute(command as DiscoveryCommand))
   handle('protected:history', () =>
     Promise.all(ledger.recentKeys().map(workId => hermes.request({ action: 'status', workId })))
   )
@@ -333,6 +338,7 @@ function register() {
     if (ledger.lookup(id)) return
     await attachments.release(id)
     works.delete(id)
+    prepared.discard(id)
   })
   handle('protected:prepare', async (text, requestId, resumeWorkId, refs = [], purpose, evidenceIds = []) => {
     if (typeof text !== 'string' || text.length > 12000 || text.includes('\0')) throw Error('Invalid request')
@@ -359,18 +365,10 @@ function register() {
           throw Error('Invalid selected session')
         const selected = resumeWorkId ? await sessions.open(resumeWorkId) : undefined
         if (selected && !selected.canResume) throw Error('Unconfirmed submission cannot resume')
-        const previous = prepared.get(requestId)
-        if (previous) {
-          if (
-            previous.purpose !== purpose ||
-            previous.text !== text ||
-            previous.resumeWorkId !== resumeWorkId ||
-            JSON.stringify(previous.attachmentRefs) !== JSON.stringify(attachmentRefs)
-          )
-            throw Error('Request identifier conflict')
-          return previous.id
-        }
-        if (prepared.size >= 200) throw Error('Local request limit reached; restart the app')
+        const fingerprint = PreparedRequests.fingerprint([purpose, text, resumeWorkId, attachmentRefs])
+        const previous = prepared.find(requestId, fingerprint)
+        if (previous) return previous
+        prepared.assertRoom(id => ledger.lookup(id))
         const id = `work_${randomUUID().replaceAll('-', '')}`
         const composed = attachments.compose(vaultText, attachmentRefs)
         prepareInput(
@@ -386,7 +384,7 @@ function register() {
           ? !fixtureMode && (await diagnose(runtime.diagnostics)).nativeImageAllowed === true
           : false
         const staged = await attachments.stage(id, vaultText, attachmentRefs, allowImage)
-        prepared.set(requestId, { text, id, resumeWorkId, attachmentRefs, purpose })
+        prepared.add(requestId, fingerprint, id)
         works.set(id, {
           work_id: id,
           instructions: vaultCompose(staged.instructions, evidence),
@@ -405,8 +403,9 @@ function register() {
     try {
       return await hermes.request(operation)
     } catch (error) {
-      if (operation?.action === 'start' && typeof operation.workId === 'string' && !ledger.lookup(operation.workId))
-        await attachments.release(operation.workId)
+      const op = operation as { action?: unknown; workId?: unknown } | null
+      if (op?.action === 'start' && typeof op.workId === 'string' && !ledger.lookup(op.workId))
+        await attachments.release(op.workId)
       throw error
     }
   })

@@ -40,6 +40,10 @@ jobs:
       - run: npm run test:services
       - run: cargo test --locked --manifest-path apps/desktop/native/office-reader/Cargo.toml
       - run: npm run build
+      # Launches the built app against the offline fixture transport; needs the macOS window server.
+      # Fixture mode launches ~/.local/bin/node (a link to the Hermes node on a real machine).
+      - run: mkdir -p ~/.local/bin && ln -sf "$(command -v node)" ~/.local/bin/node
+      - run: npm run test:e2e
       - run: npm audit --omit=dev --audit-level=high
       - uses: taiki-e/install-action@v2
         with:

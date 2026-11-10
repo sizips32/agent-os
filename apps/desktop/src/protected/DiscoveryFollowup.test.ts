@@ -79,6 +79,7 @@ beforeEach(async () => {
   bridge = {
     prepare: vi.fn(async () => workId),
     request: vi.fn(async () => terminal()),
+    onHermesState: vi.fn(() => () => {}),
     discardPrepared: vi.fn(async () => {}),
     conversation: vi.fn(async () => ({
       workId,

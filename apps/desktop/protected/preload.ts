@@ -37,6 +37,13 @@ const bridge: ProtectedBridge = {
   prepare: (text, requestId, resumeWorkId, attachmentIds, purpose, evidenceIds) =>
     ipcRenderer.invoke('protected:prepare', text, requestId, resumeWorkId, attachmentIds, purpose, evidenceIds),
   request: operation => ipcRenderer.invoke('protected:request', operation),
+  onHermesState: listener => {
+    const receive = (_event: Electron.IpcRendererEvent, value: import('./types').HermesState) => listener(value)
+    ipcRenderer.on('protected:hermes-event', receive)
+    return () => {
+      ipcRenderer.removeListener('protected:hermes-event', receive)
+    }
+  },
   profile: () => ipcRenderer.invoke('protected:profile'),
   quit: () => ipcRenderer.invoke('protected:quit')
 }

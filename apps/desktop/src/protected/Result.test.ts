@@ -12,8 +12,11 @@ const button = (label: string) => [...host.querySelectorAll('button')].find(b =>
 async function click(label: string) {
   await act(async () => button(label).click())
 }
+// These tests are about the original text, so they use the raw view (Markdown rendering is display-only).
 async function render(protectedResult = false, value = text) {
   await act(async () => root.render(createElement(Result, { text: value, workId, protectedResult })))
+  const raw = button('원문 보기')
+  if (raw) await act(async () => raw.click())
 }
 beforeEach(() => {
   hidden = false
@@ -107,6 +110,7 @@ test('confirm/cancel/hide/undo/restart preserves original content and scope', as
   await render()
   expect(host.querySelector('pre')).toBeNull()
   await click('결과 삭제 되돌리기')
+  await click('원문 보기') // restored results come back in the rendered view
   expect(host.querySelector('pre')!.textContent).toBe(text)
   expect(hidden).toBe(false)
 })

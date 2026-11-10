@@ -293,6 +293,7 @@ export function VaultPane({
               검색어
               <input
                 aria-label="볼트 검색어"
+                data-shortcut="vault-search"
                 value={query}
                 maxLength={100}
                 onChange={e => setQuery(e.target.value)}

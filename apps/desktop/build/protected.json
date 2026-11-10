@@ -2,13 +2,17 @@
   "appId": "dev.ohha.agentos.protected",
   "productName": "Agent OS",
   "executableName": "Agent OS",
-  "electronVersion": "44.5.1",
   "asar": true,
   "npmRebuild": false,
-  "files": ["dist/**", "package.json"],
+  "files": [
+    "dist/**",
+    "package.json"
+  ],
   "mac": {
     "category": "public.app-category.productivity",
-    "target": ["dir"],
+    "target": [
+      "dir"
+    ],
     "identity": null,
     "notarize": false
   }

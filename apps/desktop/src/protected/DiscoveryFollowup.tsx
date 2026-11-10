@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { StatusPoller } from '../../protected/status-poller'
+import { startStatusFeed } from '../../protected/status-feed'
 import { SubmissionFlow } from '../../protected/submission-flow'
 import { followupPrompt, parseFollowup, type Followup } from '../../protected/discovery-ai'
 import type {
@@ -42,7 +42,7 @@ export function DiscoveryFollowup({
     [notice, setNotice] = useState('')
   const cancelRequested = useRef(false),
     expectedWork = useRef<string | undefined>(undefined),
-    poll = useRef<StatusPoller | null>(null)
+    poll = useRef<{ stop: () => void } | null>(null)
   const [pollRevision, setPollRevision] = useState(0)
   const lock = useRef(false),
     latest = useRef(value),
@@ -90,19 +90,16 @@ export function DiscoveryFollowup({
       state.current.status !== 'running'
     )
       return
-    const current = new StatusPoller(
+    const feed = startStatusFeed({
       workId,
-      async () => {
+      read: async () => {
         const next = await window.protectedHerald.request({ action: 'status', workId })
         if (next.workId !== workId) throw Error('Unexpected work result')
         return next
       },
-      next => {
-        if (next.status !== 'running') current.stop()
-        publish(next)
-      },
-      () => {
-        current.stop()
+      publish,
+      failed: () => {
+        feed.stop()
         const saved = latest.current
         if (saved) {
           change({ ...saved, phase: 'unknown' })
@@ -111,14 +108,13 @@ export function DiscoveryFollowup({
         setNotice(
           '기존 요청 상태를 확인하지 못했습니다. 자동 조회를 멈췄으며 재전송하지 않습니다. 기존 요청 상태·결과만 직접 확인해 주세요.'
         )
-      }
-    )
-    poll.current = current
-    const timer = setInterval(() => void current.tick(), 500)
+      },
+      subscribe: listener => window.protectedHerald.onHermesState(listener)
+    })
+    poll.current = feed
     return () => {
-      current.stop()
-      clearInterval(timer)
-      if (poll.current === current) poll.current = null
+      feed.stop()
+      if (poll.current === feed) poll.current = null
     }
   }, [busy, value?.phase, record?.workId, pollRevision])
   function publish(next: HermesState) {

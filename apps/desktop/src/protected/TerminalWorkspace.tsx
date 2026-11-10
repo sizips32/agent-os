@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type PointerEvent as ReactPointerEvent } from 'react'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
+import type { Terminal as XTerminal } from '@xterm/xterm'
+import type { FitAddon as XFitAddon } from '@xterm/addon-fit'
 import type { TerminalEvent, TerminalHandle } from '../../protected/terminal-types'
 import '@xterm/xterm/css/xterm.css'
 
@@ -20,7 +20,7 @@ export function TerminalWorkspace({ children }: { children: ReactNode }) {
   const [started, setStarted] = useState(layout.open)
   const box = useRef<HTMLDivElement>(null)
   const surface = useRef<HTMLDivElement>(null)
-  const client = useRef<Terminal | null>(null)
+  const client = useRef<XTerminal | null>(null)
   const handle = useRef<TerminalHandle | null>(null)
   const [status, setStatus] = useState('준비 중')
   const [connected, setConnected] = useState(false)
@@ -43,84 +43,98 @@ export function TerminalWorkspace({ children }: { children: ReactNode }) {
       setStatus('터미널 연결을 사용할 수 없습니다.')
       return
     }
-    let disposed = false
-    let active: TerminalHandle | null = null
-    let ended = false
-    const waiting: TerminalEvent[] = []
-    const term = new Terminal({
-      fontFamily: 'Menlo, Monaco, monospace',
-      fontSize: 13,
-      lineHeight: 1.25,
-      scrollback: 3000,
-      cursorBlink: true,
-      allowProposedApi: false,
-      theme: { background: '#0b1419', foreground: '#dce9e3', cursor: '#a2d6bc', selectionBackground: '#53796a88' }
+    const surfaceNode = surface.current
+    let cancelled = false
+    let unmount: (() => void) | undefined
+    // xterm is a large dependency: load it when the terminal first opens, not with the app shell.
+    void Promise.all([import('@xterm/xterm'), import('@xterm/addon-fit')]).then(([{ Terminal }, { FitAddon }]) => {
+      if (cancelled) return
+      unmount = mount(Terminal, FitAddon)
     })
-    const fit = new FitAddon()
-    term.loadAddon(fit)
-    term.parser.registerOscHandler(52, () => true)
-    term.open(surface.current)
-    client.current = term
-    function resize() {
-      if (disposed || !surface.current || surface.current.clientHeight < 20 || surface.current.clientWidth < 20) return
-      fit.fit()
-      if (active && !ended) void api.resize(active.id, { cols: term.cols, rows: term.rows }).catch(() => {})
-    }
-    const observer = new ResizeObserver(resize)
-    observer.observe(surface.current)
-    const input = term.onData(data => {
-      if (active && !ended)
-        void api.write(active.id, data).catch(() => {
-          if (!disposed) setStatus('입력 연결을 확인해 주세요.')
+    function mount(Terminal: typeof XTerminal, FitAddon: typeof XFitAddon) {
+      let disposed = false
+      let active: TerminalHandle | null = null
+      let ended = false
+      const waiting: TerminalEvent[] = []
+      const term: XTerminal = new Terminal({
+        fontFamily: 'Menlo, Monaco, monospace',
+        fontSize: 13,
+        lineHeight: 1.25,
+        scrollback: 3000,
+        cursorBlink: true,
+        allowProposedApi: false,
+        theme: { background: '#0b1419', foreground: '#dce9e3', cursor: '#a2d6bc', selectionBackground: '#53796a88' }
+      })
+      const fit: XFitAddon = new FitAddon()
+      term.loadAddon(fit)
+      term.parser.registerOscHandler(52, () => true)
+      term.open(surfaceNode)
+      client.current = term
+      function resize() {
+        if (disposed || !surfaceNode || surfaceNode.clientHeight < 20 || surfaceNode.clientWidth < 20) return
+        fit.fit()
+        if (active && !ended) void api.resize(active.id, { cols: term.cols, rows: term.rows }).catch(() => {})
+      }
+      const observer = new ResizeObserver(resize)
+      observer.observe(surfaceNode)
+      const input = term.onData(data => {
+        if (active && !ended)
+          void api.write(active.id, data).catch(() => {
+            if (!disposed) setStatus('입력 연결을 확인해 주세요.')
+          })
+      })
+      const render = (event: TerminalEvent) => {
+        if (!active || event.id !== active.id || disposed) return
+        if (event.type === 'data')
+          term.write(event.data, () => {
+            if (!disposed) void api.acknowledge(event.id, new TextEncoder().encode(event.data).length).catch(() => {})
+          })
+        else {
+          ended = true
+          handle.current = null
+          setConnected(false)
+          setStatus(`종료 · 코드 ${event.exitCode}`)
+          term.write('\r\n[터미널 종료]\r\n')
+        }
+      }
+      const off = api.onEvent(event => {
+        if (!active) {
+          if (waiting.length < 128) waiting.push(event)
+        } else render(event)
+      })
+      resize()
+      setStatus('연결 중')
+      void api
+        .open({ cols: Math.max(2, Math.min(500, term.cols)), rows: Math.max(1, Math.min(300, term.rows)) })
+        .then(value => {
+          if (disposed) return
+          active = value
+          handle.current = value
+          setStatus('zsh · 로컬 Mac')
+          setConnected(true)
+          for (const event of waiting) render(event)
+          waiting.length = 0
+          resize()
         })
-    })
-    const render = (event: TerminalEvent) => {
-      if (!active || event.id !== active.id || disposed) return
-      if (event.type === 'data')
-        term.write(event.data, () => {
-          if (!disposed) void api.acknowledge(event.id, new TextEncoder().encode(event.data).length).catch(() => {})
+        .catch(() => {
+          if (!disposed) {
+            setStatus('터미널을 열지 못했습니다. 다시 열기를 눌러 주세요.')
+            setConnected(false)
+          }
         })
-      else {
-        ended = true
+      return () => {
+        disposed = true
+        off()
+        observer.disconnect()
+        input.dispose()
+        term.dispose()
+        client.current = null
         handle.current = null
-        setConnected(false)
-        setStatus(`종료 · 코드 ${event.exitCode}`)
-        term.write('\r\n[터미널 종료]\r\n')
       }
     }
-    const off = api.onEvent(event => {
-      if (!active) {
-        if (waiting.length < 128) waiting.push(event)
-      } else render(event)
-    })
-    resize()
-    setStatus('연결 중')
-    void api
-      .open({ cols: Math.max(2, Math.min(500, term.cols)), rows: Math.max(1, Math.min(300, term.rows)) })
-      .then(value => {
-        if (disposed) return
-        active = value
-        handle.current = value
-        setStatus('zsh · 로컬 Mac')
-        setConnected(true)
-        for (const event of waiting) render(event)
-        waiting.length = 0
-        resize()
-      })
-      .catch(() => {
-        if (!disposed) {
-          setStatus('터미널을 열지 못했습니다. 다시 열기를 눌러 주세요.')
-          setConnected(false)
-        }
-      })
     return () => {
-      disposed = true
-      off()
-      observer.disconnect()
-      input.dispose()
-      term.dispose()
-      client.current = null
-      handle.current = null
+      cancelled = true
+      unmount?.()
     }
   }, [started, generation])
   function toggle() {
@@ -180,7 +194,14 @@ export function TerminalWorkspace({ children }: { children: ReactNode }) {
       />
       <section className="agent-terminal" id="agent-local-terminal" aria-label="로컬 터미널">
         <header className="agent-terminal-toolbar">
-          <button type="button" aria-expanded={layout.open} aria-controls="agent-terminal-surface" onClick={toggle}>
+          <button
+            type="button"
+            data-shortcut="terminal"
+            title="터미널 접기·펼치기 (Ctrl+`)"
+            aria-expanded={layout.open}
+            aria-controls="agent-terminal-surface"
+            onClick={toggle}
+          >
             {layout.open ? '⌄ 터미널 접기' : '⌃ 터미널 펼치기'}
           </button>
           <span role="status">{started ? status : '로컬 Mac · 열기 대기'}</span>

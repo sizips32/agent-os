@@ -20,7 +20,15 @@ const uuid = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9-]{3
 const deny = (p: string) =>
   p.split('/').some(x => x.startsWith('.') || /^(credentials|secrets|auth|config|token|password|id_rsa)/i.test(x)) ||
   /sync-conflict|\.pem$|\.key$/i.test(p)
-const SEARCH = { entries: 5000, notes: 3000, bytes: 32 * 1024 * 1024, depth: 10, hits: 30, budgetMs: 2000 }
+const SEARCH = {
+  entries: 5000,
+  notes: 3000,
+  bytes: 32 * 1024 * 1024,
+  depth: 10,
+  hits: 30,
+  budgetMs: 2000,
+  readAhead: 8
+}
 const secret = (s: string) =>
   /-----BEGIN .*PRIVATE KEY|\b(?:sk-proj-|ghp_|github_pat_)[\w-]{15,}|(?:api_key|password|access_token)\s*[:=]\s*["']?[^\s"']{12,}/i.test(
     s
@@ -33,7 +41,12 @@ export class Vault {
     private directory: string,
     private storage: string,
     private openUri: (uri: string) => Promise<void>,
-    private options: { writer?: string; beforePublish?: () => Promise<void>; searchBudgetMs?: number } = {}
+    private options: {
+      writer?: string
+      beforePublish?: () => Promise<void>
+      searchBudgetMs?: number
+      readAhead?: number
+    } = {}
   ) {}
   async root() {
     const actual = await realpath(this.directory)
@@ -91,7 +104,7 @@ export class Vault {
     const tags = [
       ...new Set([
         ...block
-          .split(/[\n,\[\]]/)
+          .split(/[\n,[\]]/)
           .map(t => t.trim().replace(/^[-#]\s*|^["']|["']$/g, ''))
           .filter(t => /^[\p{L}\p{N}_/-]{1,60}$/u.test(t)),
         ...Array.from(s.matchAll(/(?:^|\s)#([\p{L}\p{N}_/-]+)/gu), m => m[1])
@@ -165,6 +178,9 @@ export class Vault {
     const scan: VaultScan = { notes: 0, matched: 0, oversized: 0, unreadable: 0, truncated: false }
     let entries = 0,
       bytes = 0
+    // Phase 1 lists the tree in a fixed order (cheap). Phase 2 reads the notes with a small read-ahead
+    // window but commits them strictly in that order, so the caps and the result equal a sequential scan.
+    const files: string[] = []
     while (todo.length) {
       const rel = todo.shift()!
       if (rel.split('/').length > SEARCH.depth) {
@@ -190,30 +206,47 @@ export class Vault {
           todo.push(name)
           continue
         }
-        if (!item.isFile() || !name.endsWith('.md')) continue
-        if (scan.notes >= SEARCH.notes || bytes >= SEARCH.bytes) {
-          scan.truncated = true
-          todo.length = 0
-          break
-        }
-        let s: string
-        try {
-          s = await this.read(name)
-        } catch (e) {
-          if (String((e as Error).message).includes('64KiB')) scan.oversized++
-          else scan.unreadable++
-          continue
-        }
-        scan.notes++
-        bytes += Buffer.byteLength(s)
-        const meta = this.metadata(name, s)
-        if ((topic && meta.topic !== topic) || (t && !meta.tags.some(x => x.toLowerCase().includes(t)))) continue
-        const title = meta.title.toLowerCase().includes(q),
-          tagged = !!q && meta.tags.some(x => x.toLowerCase().includes(q)),
-          at = s.toLowerCase().indexOf(q)
-        if (q && !title && !tagged && at < 0) continue
-        found.push({ name, s, meta, score: (title ? 2 : 0) + (tagged ? 1 : 0), at })
+        if (item.isFile() && name.endsWith('.md')) files.push(name)
       }
+    }
+    const ahead = Math.max(1, this.options.readAhead ?? SEARCH.readAhead)
+    const reads = new Map<number, Promise<{ s: string } | { error: unknown }>>()
+    const prefetch = (from: number) => {
+      for (let j = from; j < Math.min(files.length, from + ahead); j++)
+        if (!reads.has(j))
+          reads.set(
+            j,
+            this.read(files[j]).then(
+              s => ({ s }),
+              error => ({ error })
+            )
+          )
+    }
+    for (let i = 0; i < files.length; i++) {
+      const name = files[i]
+      // A cap or the deadline stops the scan here; reads already started beyond this point are discarded.
+      if (Date.now() > deadline || scan.notes >= SEARCH.notes || bytes >= SEARCH.bytes) {
+        scan.truncated = true
+        break
+      }
+      prefetch(i)
+      const read = (await reads.get(i)!) as { s: string } | { error: unknown }
+      reads.delete(i)
+      if ('error' in read) {
+        if (String((read.error as Error).message).includes('64KiB')) scan.oversized++
+        else scan.unreadable++
+        continue
+      }
+      const s = read.s
+      scan.notes++
+      bytes += Buffer.byteLength(s)
+      const meta = this.metadata(name, s)
+      if ((topic && meta.topic !== topic) || (t && !meta.tags.some(x => x.toLowerCase().includes(t)))) continue
+      const title = meta.title.toLowerCase().includes(q),
+        tagged = !!q && meta.tags.some(x => x.toLowerCase().includes(q)),
+        at = s.toLowerCase().indexOf(q)
+      if (q && !title && !tagged && at < 0) continue
+      found.push({ name, s, meta, score: (title ? 2 : 0) + (tagged ? 1 : 0), at })
     }
     scan.matched = found.length
     found.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
