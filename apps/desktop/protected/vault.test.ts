@@ -4,9 +4,14 @@ import { tmpdir, homedir } from 'node:os'
 import path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { Vault } from './vault'
 import { vaultCompose, type VaultDraft } from './vault-types'
 import { vaultProtection } from './sandbox'
+// These tests drive the real Hermes SDK checkout (cli.py) through the vault runner. Without that
+// local installation (e.g. on a CI runner) they cannot run, so they are skipped rather than failed.
+const hasHermes = existsSync(path.join(homedir(), '.hermes/hermes-agent/cli.py'))
+const hermesTest = test.skipIf(!hasHermes)
 const roots: string[] = []
 const note =
   '---\ntitle: 합성 지식\ntags:\n  - alpha\n  - beta\n---\n# 합성 경험\n반복 작업 근거입니다.\n[[숨긴 노트]] ![[첨부]]\n## 코드\nconst value = "한글";\n'
@@ -82,7 +87,7 @@ test('hidden/secret/conflict/symlink and unsupported folders excluded', async ()
   await expect(vault.execute({ action: 'preview', id: '../outside' })).rejects.toThrow()
   expect(await readFile(outside, 'utf8')).toBe(note)
 })
-test('preview/cancel no write; concurrent save and restart deduplicate', async () => {
+hermesTest('preview/cancel no write; concurrent save and restart deduplicate', async () => {
   const { vault, root, storage, openUri } = await fixture()
   const d = draft()
   expect((await vault.execute({ action: 'save-preview', draft: d })).markdown).toContain('classification: INBOX')
@@ -99,7 +104,7 @@ test('preview/cancel no write; concurrent save and restart deduplicate', async (
   expect((await readdir(path.join(root, '0_INBOX'))).filter(x => x.startsWith('AgentOS-'))).toHaveLength(1)
   expect(await readFile(path.join(root, '0_INBOX/source.md'), 'utf8')).toBe(note)
 })
-test('same-name collision and external saved edit never overwritten', async () => {
+hermesTest('same-name collision and external saved edit never overwritten', async () => {
   const { vault, root } = await fixture()
   const d = draft(),
     p = path.join(root, '0_INBOX/AgentOS-' + d.captureId + '.md')
@@ -112,7 +117,7 @@ test('same-name collision and external saved edit never overwritten', async () =
   await writeFile(path.join(root, saved.path), 'external edit')
   await expect(vault.execute({ action: 'suggest', saved })).rejects.toThrow('변경')
 })
-test('link preview no write; confirmed new version leaves original draft/MOC intact', async () => {
+hermesTest('link preview no write; confirmed new version leaves original draft/MOC intact', async () => {
   const { vault, root } = await fixture()
   const saved = (await vault.execute({ action: 'save', draft: draft() })).saved!,
     original = await readFile(path.join(root, saved.path), 'utf8'),
@@ -171,7 +176,7 @@ test('sandbox prevents synthetic read/write and descendant read; original hash i
       .digest('hex')
   ).toBe(before)
 })
-test('official SDK no-model contract reports exact supported runtime or closes safely on SDK drift', () => {
+hermesTest('official SDK no-model contract reports exact supported runtime or closes safely on SDK drift', () => {
   const r = JSON.parse(
     execFileSync(
       path.join(homedir(), '.hermes/hermes-agent/venv/bin/python'),
@@ -182,7 +187,7 @@ test('official SDK no-model contract reports exact supported runtime or closes s
   if (r.ready) expect(r.mode).toBe('fresh-text-no-tools')
   else expect(r.code).toBe('sdk_version_changed')
 })
-test('SDK effective tool guard refuses nonempty schemas before query', () => {
+hermesTest('SDK effective tool guard refuses nonempty schemas before query', () => {
   const output = execFileSync(
     path.join(homedir(), '.hermes/hermes-agent/venv/bin/python'),
     [
@@ -219,7 +224,7 @@ test('INBOX replacement between path check and publication cannot create outside
   expect(await readdir(outside)).toEqual([])
   expect(await readdir(path.join(root, 'original-INBOX'))).toEqual(['source.md'])
 })
-test('private prefill/personality/cache are stripped and actual execution method blocked', () => {
+hermesTest('private prefill/personality/cache are stripped and actual execution method blocked', () => {
   const result = execFileSync(
     path.join(homedir(), '.hermes/hermes-agent/venv/bin/python'),
     [
@@ -242,7 +247,7 @@ print('clean')`
   )
   expect(result.trim()).toBe('clean')
 })
-test('runtime structure mismatch fails before the query', () => {
+hermesTest('runtime structure mismatch fails before the query', () => {
   const result = execFileSync(
     path.join(homedir(), '.hermes/hermes-agent/venv/bin/python'),
     [
@@ -257,7 +262,7 @@ except RuntimeError:print('blocked')`
   )
   expect(result.trim()).toBe('blocked')
 })
-test('private provider request overrides are refused without initialization', () => {
+hermesTest('private provider request overrides are refused without initialization', () => {
   const result = execFileSync(
     path.join(homedir(), '.hermes/hermes-agent/venv/bin/python'),
     [
@@ -273,7 +278,7 @@ except RuntimeError:print('blocked')`
   )
   expect(result.trim()).toBe('blocked')
 })
-test('SDK source hash drift is rejected by no-model check', () => {
+hermesTest('SDK source hash drift is rejected by no-model check', () => {
   const result = execFileSync(
     path.join(homedir(), '.hermes/hermes-agent/venv/bin/python'),
     [
@@ -411,26 +416,29 @@ print('fixed codes only')`
   expect(result.trim()).toBe('fixed codes only')
 })
 
-test('official selector never enters changed interactive TUI path for isolated quiet oneshot even on a TTY', () => {
-  const result = execFileSync(
-    'python3',
-    [
-      '-B',
-      '-c',
-      `import ast,types,pathlib
+hermesTest(
+  'official selector never enters changed interactive TUI path for isolated quiet oneshot even on a TTY',
+  () => {
+    const result = execFileSync(
+      'python3',
+      [
+        '-B',
+        '-c',
+        `import ast,types,pathlib
 source=ast.parse((pathlib.Path.home()/'.hermes/hermes-agent/cli.py').read_text())
 f=next(n for n in source.body if isinstance(n,ast.FunctionDef) and n.name=='_should_seed_interactive')
 ns={'sys':types.SimpleNamespace(stdin=types.SimpleNamespace(isatty=lambda:True),stdout=types.SimpleNamespace(isatty=lambda:True))}
 exec(compile(ast.Module(body=[f],type_ignores=[]),'public SDK selector','exec'),ns)
 assert ns['_should_seed_interactive']('synthetic question',None,True,True) is False
 print('oneshot excludes interactive TUI')`
-    ],
-    { encoding: 'utf8' }
-  )
-  expect(result.trim()).toBe('oneshot excludes interactive TUI')
-})
+      ],
+      { encoding: 'utf8' }
+    )
+    expect(result.trim()).toBe('oneshot excludes interactive TUI')
+  }
+)
 
-test('_giselle notes are searchable and selectable without following links; saves stay in INBOX', async () => {
+hermesTest('_giselle notes are searchable and selectable without following links; saves stay in INBOX', async () => {
   const { vault, root } = await fixture()
   await mkdir(path.join(root, '_giselle'))
   await writeFile(path.join(root, '_giselle/guide.md'), note)
