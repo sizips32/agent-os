@@ -24,7 +24,9 @@ async function vaultWith(populate: (semantic: string) => Promise<void>) {
 
 // Same inputs, different read-ahead: everything the caller can observe must be identical.
 async function run(setup: { root: string; storage: string }, readAhead: number, query = 'key') {
-  const vault = new Vault(setup.root, setup.storage, async () => {}, { readAhead })
+  // A generous time budget: these tests are about the count/byte caps, not the 2 s deadline, which a slow
+  // machine (CI) would otherwise hit first.
+  const vault = new Vault(setup.root, setup.storage, async () => {}, { readAhead, searchBudgetMs: 10 * 60 * 1000 })
   const r = await vault.search(query, '1_SEMANTIC_LAYER', '', '')
   return {
     hits: (r.hits ?? []).map(h => ({ path: h.path, title: h.title, context: h.context, tags: h.tags })),
