@@ -38,6 +38,10 @@ test('starts with a ready diagnosis and a live terminal', async () => {
   await ready(page)
   // xterm is a separately loaded chunk: this fails if the app's CSP or packaging blocks it.
   await expect.poll(() => page.locator('.xterm').count(), { timeout: 20000 }).toBeGreaterThan(0)
+  // The shell must actually start: a non-executable node-pty spawn-helper fails here (posix_spawnp).
+  await expect
+    .poll(() => page.locator('.agent-terminal-toolbar [role="status"]').innerText(), { timeout: 20000 })
+    .toContain('로컬 Mac')
 })
 
 test('a request is answered by the fixture transport', async () => {
